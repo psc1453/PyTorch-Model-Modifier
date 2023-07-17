@@ -31,15 +31,24 @@ def quantize_tensor_with_original_scale(tensor_input: torch.Tensor, width: int) 
 
 
 def quantize_model_parameters_with_original_scale(model_input: nn.Module, weight_width: int,
-                                                  bias_weight: int) -> NNModule:
+                                                  bias_width: int) -> NNModule:
     model = copy.deepcopy(model_input)
     model_parameters = model.state_dict()
     for parameter_name in model_parameters:
         if 'weight' in parameter_name:
             model_parameters[parameter_name] = quantize_tensor_with_original_scale(
-                tensor_input=model_parameters[parameter_name], width=bias_weight)
+                tensor_input=model_parameters[parameter_name], width=weight_width
+            )
         elif 'bias' in parameter_name:
-            model_parameters[parameter_name] = model_parameters[parameter_name]
+            model_parameters[parameter_name] = quantize_tensor_with_original_scale(
+                tensor_input=model_parameters[parameter_name], width=bias_width
+            )
+        elif 'running_mean' in parameter_name:
+            pass
+        elif 'running_var' in parameter_name:
+            pass
+        elif 'num_batches_tracked' in parameter_name:
+            pass
         else:
             raise KeyError('Unsupported state dict type found. (%s)' % parameter_name)
     model.load_state_dict(model_parameters)
