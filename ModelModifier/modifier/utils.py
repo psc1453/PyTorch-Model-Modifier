@@ -37,7 +37,9 @@ def get_insert_config(node: Node, state_dict: Dict, node_insert_mapping: NodeIns
 @DeprecationWarning
 def insert_after_legacy(model_input: NNModule, insert_mapping: NodeInsertMapping) -> torch.fx.GraphModule:
     # Generate necessary components
-    symbolic_traced_module = symbolic_trace(model_input)
+    symbolic_traced_module = model_input
+    if not isinstance(model_input, torch.fx.GraphModule):
+        symbolic_traced_module = symbolic_trace(model_input)
     symbolic_traced_module_dict = dict(symbolic_traced_module.named_modules())
     symbolic_traced_module_graph = symbolic_traced_module.graph
 
@@ -81,12 +83,14 @@ def insert_after_legacy(model_input: NNModule, insert_mapping: NodeInsertMapping
                 last_origin_node_has_been_inserted = False
 
     symbolic_traced_module_graph.lint()
-    return torch.fx.GraphModule(symbolic_traced_module, symbolic_traced_module_graph)
+    return torch.fx.GraphModule(model_input, symbolic_traced_module_graph)
 
 
 def insert_after(model_input: NNModule, insert_mapping: NodeInsertMapping) -> torch.fx.GraphModule:
     # Generate necessary components
-    symbolic_traced_module = symbolic_trace(model_input)
+    symbolic_traced_module = model_input
+    if not isinstance(model_input, torch.fx.GraphModule):
+        symbolic_traced_module = symbolic_trace(model_input)
     symbolic_traced_module_dict = dict(symbolic_traced_module.named_modules())
     symbolic_traced_module_graph = symbolic_traced_module.graph
 
@@ -116,12 +120,14 @@ def insert_after(model_input: NNModule, insert_mapping: NodeInsertMapping) -> to
                     set_node_input(next_origin_node, new_node_output)
 
     symbolic_traced_module_graph.lint()
-    return torch.fx.GraphModule(symbolic_traced_module, symbolic_traced_module_graph)
+    return torch.fx.GraphModule(model_input, symbolic_traced_module_graph)
 
 
 def insert_before(model_input: NNModule, insert_mapping: NodeInsertMapping) -> torch.fx.GraphModule:
     # Generate necessary components
-    symbolic_traced_module = symbolic_trace(model_input)
+    symbolic_traced_module = model_input
+    if not isinstance(model_input, torch.fx.GraphModule):
+        symbolic_traced_module = symbolic_trace(model_input)
     symbolic_traced_module_dict = dict(symbolic_traced_module.named_modules())
     symbolic_traced_module_graph = symbolic_traced_module.graph
 
@@ -144,4 +150,4 @@ def insert_before(model_input: NNModule, insert_mapping: NodeInsertMapping) -> t
                 set_node_input(current_node, new_node_output)
 
     symbolic_traced_module_graph.lint()
-    return torch.fx.GraphModule(symbolic_traced_module, symbolic_traced_module_graph)
+    return torch.fx.GraphModule(model_input, symbolic_traced_module_graph)
