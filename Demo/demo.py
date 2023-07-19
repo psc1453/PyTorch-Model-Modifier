@@ -2,8 +2,9 @@ import torch
 
 from Demo.models import FSRCNN
 from ModelModifier.modifier.classes import NodeInsertMapping, NodeInsertMappingElement, FunctionPackage
-from ModelModifier.modifier.utils import insert_after
-from ModelModifier.tools.quantization import quantize_model_parameters_with_original_scale, quantize_tensor_with_original_scale
+from ModelModifier.modifier.utils import insert_after, insert_before
+from ModelModifier.tools.quantization import quantize_model_parameters_with_original_scale, \
+    quantize_tensor_with_original_scale
 
 CKPT_PATH = 'fsrcnn_x3.pth'
 SCALE = 3
@@ -19,8 +20,15 @@ if __name__ == '__main__':
     conv2d_config = NodeInsertMappingElement(torch.nn.Conv2d, quantize_8bit_function_package)
     mapping.add_config(conv2d_config)
 
-    new = insert_after(model_input=quantized_by_parameters_model, insert_mapping=mapping)
+    quantized_before = insert_before(model_input=quantized_by_parameters_model, insert_mapping=mapping)
+    quantized_after = insert_after(model_input=quantized_by_parameters_model, insert_mapping=mapping)
 
-    print(model(test_input))
-    print(new(test_input))
-    new.print_readable()
+    print('Original Output: \n', model(test_input))
+    print('Quantized Before Conv2D Output: \n', quantized_before(test_input))
+    print('Quantized After Conv2D Output: \n', quantized_after(test_input))
+
+    print('Graph of Quantizing Before Conv2D:')
+    quantized_before.print_readable()
+
+    print('Graph of Quantizing After Conv2D:')
+    quantized_after.print_readable()
