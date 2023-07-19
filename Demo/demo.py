@@ -3,7 +3,7 @@ import torch
 from Demo.models import FSRCNN
 from ModelModifier.modifier.classes import NodeInsertMapping, NodeInsertMappingElement, FunctionPackage
 from ModelModifier.modifier.utils import insert_after, insert_before
-from ModelModifier.tools.quantization import quantize_model_parameters_with_original_scale, \
+from ModelModifier.tools.quantization.utils import quantize_model_parameters_with_original_scale, \
     quantize_tensor_with_original_scale
 
 CKPT_PATH = 'fsrcnn_x3.pth'
