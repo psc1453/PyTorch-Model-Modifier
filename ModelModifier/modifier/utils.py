@@ -117,3 +117,31 @@ def insert_after(model_input: NNModule, insert_mapping: NodeInsertMapping) -> to
 
     symbolic_traced_module_graph.lint()
     return torch.fx.GraphModule(symbolic_traced_module, symbolic_traced_module_graph)
+
+
+def insert_before(model_input: NNModule, insert_mapping: NodeInsertMapping) -> torch.fx.GraphModule:
+    # Generate necessary components
+    symbolic_traced_module = symbolic_trace(model_input)
+    symbolic_traced_module_dict = dict(symbolic_traced_module.named_modules())
+    symbolic_traced_module_graph = symbolic_traced_module.graph
+
+    for current_node in symbolic_traced_module_graph.nodes:
+        insert_config = get_insert_config(current_node, symbolic_traced_module_dict, insert_mapping)
+        # If this node match the patter, a new node needs to be inserted after it
+        if insert_config.should_insert:
+            # Get the previous original node
+            previous_origin_node = current_node.prev
+            # Create temporary pointer for inserting
+            with symbolic_traced_module_graph.inserting_before(current_node):
+                # Create new node after current node
+                new_node = symbolic_traced_module_graph.call_function(insert_config.function_package.function,
+                                                                      kwargs=insert_config.function_package.parameter_dict)
+                # Set the input of the new node to the output of the previous original node
+                set_node_input(new_node, get_node_output(previous_origin_node))
+                # Get the output of the new node
+                new_node_output = get_node_output(new_node)
+                # Link the output of the new node to the input of the current node
+                set_node_input(current_node, new_node_output)
+
+    symbolic_traced_module_graph.lint()
+    return torch.fx.GraphModule(symbolic_traced_module, symbolic_traced_module_graph)
