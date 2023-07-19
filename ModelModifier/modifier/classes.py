@@ -9,7 +9,7 @@ NNModule = TypeVar("NNModule", bound=torch.nn.Module)
 
 
 class FunctionPackage:
-    def __init__(self, the_function: Callable, parameter_dict: Optional[Dict[str, Any]]):
+    def __init__(self, the_function: Callable, parameter_dict: Optional[Dict[str, Any]] = None):
         self.function = the_function
         self.parameter_dict = parameter_dict
 
