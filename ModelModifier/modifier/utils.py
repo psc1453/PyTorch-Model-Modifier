@@ -34,7 +34,7 @@ def get_insert_config(node: Node, state_dict: Dict, node_insert_mapping: NodeIns
         return NodeInsertConfig(should_insert=False)
 
 
-def generate_quantized_module(model_input: NNModule, insert_mapping: NodeInsertMapping) -> torch.fx.GraphModule:
+def insert_after(model_input: NNModule, insert_mapping: NodeInsertMapping) -> torch.fx.GraphModule:
     # Generate necessary components
     symbolic_traced_module = symbolic_trace(model_input)
     symbolic_traced_module_dict = dict(symbolic_traced_module.named_modules())
