@@ -101,14 +101,18 @@ def insert_after(model_input: NNModule, insert_mapping: NodeInsertMapping) -> to
             insert_config = get_insert_config(current_node, symbolic_traced_module_dict, insert_mapping)
             # If this node match the patter, a new node needs to be inserted after it
             if insert_config.should_insert:
+                # Get the next original node
                 next_origin_node = current_node.next
                 # Create temporary pointer for inserting
                 with symbolic_traced_module_graph.inserting_after(current_node):
                     # Create new node after current node
                     new_node = symbolic_traced_module_graph.call_function(insert_config.function_package.function,
                                                                           kwargs=insert_config.function_package.parameter_dict)
+                    # Set the input of the new node to the output of the current node
                     set_node_input(new_node, get_node_output(current_node))
+                    # Get the output of the new node
                     new_node_output = get_node_output(new_node)
+                    # Link the output of the new node to the input of the next original node
                     set_node_input(next_origin_node, new_node_output)
 
     symbolic_traced_module_graph.lint()
