@@ -1,8 +1,32 @@
 import torch
+from torch import Tensor
 from torch.fx import symbolic_trace
 
 from ModelModifier.modifier.classes import NNModule, NodeInsertMapping
 from ModelModifier.modifier.utils import get_insert_config, get_node_output, set_node_input
+from ModelModifier.tools.hardware.io import reshape_tensor_for_hardware_pe_output
+from ModelModifier.tools.quantization.utils import quantize_tensor_with_original_scale
+
+
+def bypass_bias_adder(input_tensor, bias, width):
+    # Reshape the batched tensor to original shape
+    tensor_buffer = reshape_tensor_for_hardware_pe_output(input_tensor, width)
+    # Must be 4D tensor
+    input_dimension = len(tensor_buffer.shape)
+    assert input_dimension == 4, 'Expect input tensor dimension: 4, but get %d' % input_dimension
+
+    # Convert bias list to tensor
+    bias_tensor = Tensor(bias)
+    # Broadcast 1D tensor to 4D
+    bias_tensor_broadcast = bias_tensor[None, :, None, None]
+
+    quantized_tensor_buffer = quantize_tensor_with_original_scale(tensor_buffer, width)
+    quantized_bias_broadcast = quantize_tensor_with_original_scale(bias_tensor_broadcast, width)
+
+    # Add the bias
+    output_tensor = quantized_tensor_buffer + quantized_bias_broadcast
+
+    return output_tensor
 
 
 def insert_bias_bypass(model_input: NNModule, insert_mapping: NodeInsertMapping) -> torch.fx.GraphModule:
@@ -38,9 +62,11 @@ def insert_bias_bypass(model_input: NNModule, insert_mapping: NodeInsertMapping)
                     model_state_dict[current_node.target + '.bias'] = torch.zeros_like(bias_value)
                     # Load the new state dict
                     model_input.load_state_dict(model_state_dict)
+                    parameters = insert_config.function_package.parameter_dict
+                    parameters.update({'bias': bias_list})
                     # Create new node after current node
                     new_node = symbolic_traced_module_graph.call_function(insert_config.function_package.function,
-                                                                          kwargs={'bias': bias_list})
+                                                                          kwargs=parameters)
                     # Set the input of the new node to the output of the current node
                     set_node_input(new_node, get_node_output(current_node))
                     # Get the output of the new node
