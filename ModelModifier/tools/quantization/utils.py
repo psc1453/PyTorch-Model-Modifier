@@ -49,30 +49,35 @@ def quantize_weight_by_channel_with_original_scale(tensor_input: torch.Tensor, w
 
 def quantize_model_parameters_with_original_scale(model_input: nn.Module, weight_width: int,
                                                   bias_width: int, by_channel=False) -> NNModule:
+    def remove_suffix(string):
+        parts = string.split(".")
+        result = ".".join(parts[:-1])
+        return result
+
     model = copy.deepcopy(model_input)
     model_parameters = model.state_dict()
+    model_modules_dict = dict(model.named_modules())
+
+    module_type_to_quantize = [nn.Conv2d, nn.ConvTranspose2d, nn.Linear]
+
     for parameter_name in model_parameters:
-        # TODO: Add support for layers without the name of conv and linear
-        if 'weight' in parameter_name:
-            if by_channel:
-                model_parameters[parameter_name] = quantize_weight_by_channel_with_original_scale(
-                    tensor_input=model_parameters[parameter_name], width=weight_width
+        module_name = remove_suffix(parameter_name)
+        module_type = type(model_modules_dict[module_name])
+        if module_type in module_type_to_quantize:
+            if 'weight' in parameter_name:
+                if by_channel and module_type in [nn.Conv2d, nn.ConvTranspose2d]:
+                    model_parameters[parameter_name] = quantize_weight_by_channel_with_original_scale(
+                        tensor_input=model_parameters[parameter_name], width=weight_width
+                    )
+                else:
+                    model_parameters[parameter_name] = quantize_tensor_with_original_scale(
+                        tensor_input=model_parameters[parameter_name], width=weight_width
+                    )
+            elif 'bias' in parameter_name:
+                model_parameters[parameter_name] = quantize_tensor_with_original_scale(
+                    tensor_input=model_parameters[parameter_name], width=bias_width
                 )
             else:
-                model_parameters[parameter_name] = quantize_tensor_with_original_scale(
-                    tensor_input=model_parameters[parameter_name], width=weight_width
-                )
-        elif 'bias' in parameter_name:
-            model_parameters[parameter_name] = quantize_tensor_with_original_scale(
-                tensor_input=model_parameters[parameter_name], width=bias_width
-            )
-        elif 'running_mean' in parameter_name:
-            pass
-        elif 'running_var' in parameter_name:
-            pass
-        elif 'num_batches_tracked' in parameter_name:
-            pass
-        else:
-            raise KeyError('Unsupported state dict type found. (%s)' % parameter_name)
+                raise KeyError('Unsupported state dict type found. (%s)' % parameter_name)
     model.load_state_dict(model_parameters)
     return model
